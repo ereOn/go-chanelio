@@ -6,18 +6,20 @@ import (
 
 // Emitter represents a type that is able to encode a given value.
 type Emitter interface {
+	// Emit a value.
+	//
+	// If the specified context expires, the returned error must be the
+	// context's error.
 	Emit(ctx context.Context, value interface{}) error
 }
 
 // Receiver represents a type that is able to decode a given value.
 type Receiver interface {
+	// Receive a value.
+	//
+	// If the specified context expires, the returned error must be the
+	// context's error.
 	Receive(ctx context.Context) (interface{}, error)
-}
-
-// Chanelio implements channel to/from io.Reader/io.Writer conversion.
-type Chanelio struct {
-	Emitter  Emitter
-	Receiver Receiver
 }
 
 // RunEmitter reads all the values from the specified channel and pushes
