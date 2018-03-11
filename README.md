@@ -1,2 +1,3 @@
-# go-chanelio
-A Go library that transforms channels in I/O readers and writer and the other way around.
+# Chanelio
+
+Chanelio is a Go library that transforms channels in `io.Reader`, `io.Writer` and the other way around.
