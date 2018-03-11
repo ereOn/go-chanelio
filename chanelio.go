@@ -22,6 +22,12 @@ type Receiver interface {
 	Receive(ctx context.Context) (interface{}, error)
 }
 
+// Transmitter represents a type that acts both as a Receiver and an Emitter.
+type Transmitter interface {
+	Emitter
+	Receiver
+}
+
 // RunEmitter reads all the values from the specified channel and pushes
 // them through the specified Emitter.
 //
@@ -67,32 +73,24 @@ func RunEmitter(ctx context.Context, emitter Emitter, values <-chan interface{})
 //
 // The caller must not close the channel while the call is executing.
 func RunReceiver(ctx context.Context, receiver Receiver, values chan<- interface{}) error {
-	result := make(chan error)
+	for {
+		value, err := receiver.Receive(ctx)
 
-	go func() {
-		for {
-			value, err := receiver.Receive(ctx)
-
-			if err != nil {
-				result <- err
-				return
-			}
-
-			// This is necessary: if the values channel is not able to receive
-			// the value, we must still honor the context possibly expiring.
-			select {
-			case values <- value:
-			case <-ctx.Done():
-				result <- ctx.Err()
-				return
-			}
+		if err != nil {
+			return err
 		}
-	}()
 
-	return <-result
+		// This is necessary: if the values channel is not able to receive
+		// the value, we must still honor the context possibly expiring.
+		select {
+		case values <- value:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
-// Run combines the RunEmitter and RunReceiver functions.
+// RunTransmitter combines the RunEmitter and RunReceiver functions.
 //
 // The call only returns if either:
 // - The specified context expires. In that case the context error is returned.
@@ -106,7 +104,7 @@ func RunReceiver(ctx context.Context, receiver Receiver, values chan<- interface
 // the specified context expires or the receiving process fails.
 //
 // The caller must not close the receiver channel while the call is executing.
-func Run(ctx context.Context, emitter Emitter, emitterValues <-chan interface{}, receiver Receiver, receiverValues chan<- interface{}) error {
+func RunTransmitter(ctx context.Context, transmitter Transmitter, emitterValues <-chan interface{}, receiverValues chan<- interface{}) error {
 	ctx, cancel := context.WithCancel(ctx)
 
 	// We make sure both our coroutines don't stay blocked forever on trying to
@@ -116,11 +114,11 @@ func Run(ctx context.Context, emitter Emitter, emitterValues <-chan interface{},
 	result := make(chan error, 2)
 
 	go func() {
-		result <- RunEmitter(ctx, emitter, emitterValues)
+		result <- RunEmitter(ctx, transmitter, emitterValues)
 	}()
 
 	go func() {
-		result <- RunReceiver(ctx, receiver, receiverValues)
+		result <- RunReceiver(ctx, transmitter, receiverValues)
 	}()
 
 	// We get the first result which will be the return value of the call.
@@ -133,4 +131,17 @@ func Run(ctx context.Context, emitter Emitter, emitterValues <-chan interface{},
 	<-result
 
 	return err
+}
+
+// ComposeTransmitter composes an Emitter and a Receiver into a Transmitter.
+func ComposeTransmitter(emitter Emitter, receiver Receiver) Transmitter {
+	return transmitter{
+		Emitter:  emitter,
+		Receiver: receiver,
+	}
+}
+
+type transmitter struct {
+	Emitter
+	Receiver
 }

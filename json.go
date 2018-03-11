@@ -7,7 +7,7 @@ import (
 	"reflect"
 )
 
-// NewJSONEmitter implements a new JSONEmitter.
+// NewJSONEmitter instanciates a new Emitter that serializes in JSON.
 func NewJSONEmitter(w io.WriteCloser) Emitter {
 	return jsonEmitter{
 		Encoder: json.NewEncoder(w),
@@ -36,7 +36,10 @@ func (e jsonEmitter) Emit(ctx context.Context, value interface{}) error {
 	return e.Encode(value)
 }
 
-// NewJSONReceiver implements a new JSONReceiver.
+// NewJSONReceiver instanciates a new Receiver that deserializes JSON.
+//
+// If a value is received that can't be properly deserialized as the specified
+// value type, an error is returned.
 func NewJSONReceiver(r io.ReadCloser, valueType reflect.Type) Receiver {
 	return jsonReceiver{
 		Decoder:   json.NewDecoder(r),
@@ -71,4 +74,13 @@ func (r jsonReceiver) Receive(ctx context.Context) (interface{}, error) {
 	}
 
 	return reflect.ValueOf(r.value).Elem().Interface(), nil
+}
+
+// NewJSONTransmitter instanciates a new Transmitter that serializes and
+// deserializes JSON.
+//
+// If a value is received that can't be properly deserialized as the specified
+// value type, an error is returned.
+func NewJSONTransmitter(r io.ReadCloser, w io.WriteCloser, valueType reflect.Type) Transmitter {
+	return ComposeTransmitter(NewJSONEmitter(w), NewJSONReceiver(r, valueType))
 }
