@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"time"
 
-	chanelio "github.com/ereOn/go-chanelio"
+	channelio "github.com/ereOn/go-channelio"
 )
 
 // A Person structure.
@@ -26,7 +26,7 @@ func main() {
 
 	fmt.Println("Connection established.")
 
-	transmitter := chanelio.NewJSONTransmitter(conn, conn, reflect.TypeOf(Person{}))
+	transmitter := channelio.NewJSONTransmitter(conn, conn, reflect.TypeOf(Person{}))
 
 	delay := time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), delay)
@@ -41,7 +41,7 @@ func main() {
 
 	receiverValues := make(chan interface{}, 3)
 
-	chanelio.RunTransmitter(ctx, transmitter, emitterValues, receiverValues)
+	channelio.RunTransmitter(ctx, transmitter, emitterValues, receiverValues)
 
 	close(receiverValues)
 

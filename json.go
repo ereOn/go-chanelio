@@ -1,4 +1,4 @@
-package chanelio
+package channelio
 
 import (
 	"context"
