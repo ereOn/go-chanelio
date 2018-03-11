@@ -5,7 +5,7 @@ os:
   - osx
 
 go:
-  - 1.10
+  - "1.10"
 
 install:
   - go get -u github.com/golang/lint/golint
