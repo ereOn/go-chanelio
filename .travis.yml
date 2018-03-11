@@ -11,8 +11,8 @@ install:
   - go get -u github.com/golang/lint/golint
 
 script:
-  make
-  make benchmark
+  - make
+  - make benchmark
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
