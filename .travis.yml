@@ -1,0 +1,18 @@
+language: go
+
+os:
+  - linux
+  - osx
+
+go:
+  - 1.10
+
+install:
+  - go get -u github.com/golang/lint/golint
+
+script:
+  make
+  make benchmark
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
