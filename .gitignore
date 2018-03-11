@@ -14,4 +14,4 @@
 .glide/
 
 # Coverage files.
-.coverage
+coverage.txt

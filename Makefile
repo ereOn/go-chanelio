@@ -1,7 +1,7 @@
 build:
 	golint .
 	go vet .
-	go test --coverprofile coverage .
+	go test -race -coverprofile=coverage.txt -covermode=atomic
 	go tool cover -func=coverage
 
 benchmark:
