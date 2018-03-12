@@ -89,8 +89,6 @@ func TestRunTransmitterOverNetwork(t *testing.T) {
 		}()
 
 		RunTransmitter(ctx, transmitter, emitterValues, receiverValues)
-
-		close(receiverValues)
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())

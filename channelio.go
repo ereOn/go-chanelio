@@ -65,7 +65,7 @@ func RunEmitter(ctx context.Context, emitter Emitter, values <-chan interface{})
 // - The receiving process returns an error. In that case, this error is
 // returned.
 //
-// The caller must not close the channel while the call is executing.
+// The call takes ownership of the specified channel and will close it.
 //
 // It is the caller's responsibility to ensure that the specified receiver
 // unblocks immediately as the specified context expires.
@@ -102,7 +102,8 @@ func RunReceiver(ctx context.Context, receiver Receiver, values chan<- interface
 // to be emitted. Note that even in that case, the call will still block until
 // the specified context expires or the receiving process fails.
 //
-// The caller must not close the receiver channel while the call is executing.
+// The call takes ownership of the specified receiver channel and will close
+// it.
 //
 // It is the caller's responsibility to ensure that the specified transmitter
 // unblocks immediately as the specified context expires.
