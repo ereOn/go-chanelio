@@ -1,7 +1,6 @@
 package channelio
 
 import (
-	"context"
 	"io"
 	"reflect"
 	"testing"
@@ -21,13 +20,12 @@ func (sink) Close() error { return nil }
 
 func BenchmarkJSONEmitter(b *testing.B) {
 	emitter := NewJSONEmitter(sink{})
-	ctx := context.Background()
 	value := 42
 
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		if err := emitter.Emit(ctx, value); err != nil {
+		if err := emitter.Emit(value); err != nil {
 			b.Fatalf("expected no error but got: %s", err)
 		}
 	}
@@ -35,12 +33,11 @@ func BenchmarkJSONEmitter(b *testing.B) {
 
 func BenchmarkJSONReceiver(b *testing.B) {
 	receiver := NewJSONReceiver(sink{data: []byte("42")}, reflect.TypeOf(0))
-	ctx := context.Background()
 
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		if value, err := receiver.Receive(ctx); err != nil {
+		if value, err := receiver.Receive(); err != nil {
 			b.Fatalf("expected no error but got: %s", err)
 		} else if value != 42 {
 			b.Fatalf("expected %d error but got: %d", 42, value)

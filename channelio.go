@@ -7,19 +7,13 @@ import (
 // Emitter represents a type that is able to encode a given value.
 type Emitter interface {
 	// Emit a value.
-	//
-	// If the specified context expires, the returned error must be the
-	// context's error.
-	Emit(ctx context.Context, value interface{}) error
+	Emit(value interface{}) error
 }
 
 // Receiver represents a type that is able to decode a given value.
 type Receiver interface {
 	// Receive a value.
-	//
-	// If the specified context expires, the returned error must be the
-	// context's error.
-	Receive(ctx context.Context) (interface{}, error)
+	Receive() (interface{}, error)
 }
 
 // Transmitter represents a type that acts both as a Receiver and an Emitter.
@@ -54,7 +48,7 @@ func RunEmitter(ctx context.Context, emitter Emitter, values <-chan interface{})
 				break
 			}
 
-			if err := emitter.Emit(ctx, value); err != nil {
+			if err := emitter.Emit(value); err != nil {
 				return err
 			}
 		case <-ctx.Done():
@@ -72,9 +66,14 @@ func RunEmitter(ctx context.Context, emitter Emitter, values <-chan interface{})
 // returned.
 //
 // The caller must not close the channel while the call is executing.
+//
+// It is the caller's responsibility to ensure that the specified receiver
+// unblocks immediately as the specified context expires.
 func RunReceiver(ctx context.Context, receiver Receiver, values chan<- interface{}) error {
+	defer close(values)
+
 	for {
-		value, err := receiver.Receive(ctx)
+		value, err := receiver.Receive()
 
 		if err != nil {
 			return err
@@ -104,6 +103,9 @@ func RunReceiver(ctx context.Context, receiver Receiver, values chan<- interface
 // the specified context expires or the receiving process fails.
 //
 // The caller must not close the receiver channel while the call is executing.
+//
+// It is the caller's responsibility to ensure that the specified transmitter
+// unblocks immediately as the specified context expires.
 func RunTransmitter(ctx context.Context, transmitter Transmitter, emitterValues <-chan interface{}, receiverValues chan<- interface{}) error {
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -124,10 +126,11 @@ func RunTransmitter(ctx context.Context, transmitter Transmitter, emitterValues 
 	// We get the first result which will be the return value of the call.
 	err := <-result
 
-	// Force the other goroutine to unblock and wait for it to finish. This is
-	// to ensure we don't leave the call with a pending RunEmitter call that
-	// could panic if its channel gets closed.
 	cancel()
+
+	// Wait for the other goroutine to finish. This is to ensure we don't leave
+	// the call with a pending RunEmitter call that could panic if its channel
+	// gets closed.
 	<-result
 
 	return err

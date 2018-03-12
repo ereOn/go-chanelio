@@ -11,11 +11,16 @@ import (
 func TestRunTransmitter(t *testing.T) {
 	value := 42
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	r, w := io.Pipe()
 	transmitter := NewJSONTransmitter(r, w, reflect.TypeOf(value))
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	go func() {
+		<-ctx.Done()
+		w.Close()
+	}()
 
 	emitterValues := make(chan interface{}, 1)
 	receiverValues := make(chan interface{}, 1)
@@ -55,25 +60,22 @@ func TestRunTransmitterOverNetwork(t *testing.T) {
 
 	defer server.Close()
 
-	clientConn, err := net.Dial("tcp", server.Addr().String())
-
-	if err != nil {
-		t.Fatalf("failed to connect: %s", err)
-	}
-
-	defer clientConn.Close()
-
 	go func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		serverConn, err := server.Accept()
 
 		if err != nil {
 			t.Fatalf("failed to accept: %s", err)
 		}
 
-		transmitter := NewJSONTransmitter(serverConn, serverConn, reflect.TypeOf(value))
+		go func() {
+			<-ctx.Done()
+			serverConn.Close()
+		}()
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		transmitter := NewJSONTransmitter(serverConn, serverConn, reflect.TypeOf(value))
 
 		emitterValues := make(chan interface{}, 1)
 		receiverValues := make(chan interface{}, 1)
@@ -91,10 +93,23 @@ func TestRunTransmitterOverNetwork(t *testing.T) {
 		close(receiverValues)
 	}()
 
-	transmitter := NewJSONTransmitter(clientConn, clientConn, reflect.TypeOf(value))
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	clientConn, err := net.Dial("tcp", server.Addr().String())
+
+	if err != nil {
+		t.Fatalf("failed to connect: %s", err)
+	}
+
+	go func() {
+		<-ctx.Done()
+		clientConn.Close()
+	}()
+
+	defer clientConn.Close()
+
+	transmitter := NewJSONTransmitter(clientConn, clientConn, reflect.TypeOf(value))
 
 	emitterValues := make(chan interface{}, 1)
 	receiverValues := make(chan interface{}, 1)
@@ -116,11 +131,16 @@ func TestRunTransmitterOverNetwork(t *testing.T) {
 func BenchmarkRunTransmitter(b *testing.B) {
 	value := 42
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	r, w := io.Pipe()
 	transmitter := NewJSONTransmitter(r, w, reflect.TypeOf(value))
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	go func() {
+		<-ctx.Done()
+		w.Close()
+	}()
 
 	emitterValues := make(chan interface{}, 1)
 	receiverValues := make(chan interface{}, 1)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"reflect"
-	"time"
 
 	channelio "github.com/ereOn/go-channelio"
 )
@@ -22,37 +21,41 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
 	defer server.Close()
 
-	fmt.Printf("Waiting for an incoming connection...\n")
+	for {
+		fmt.Printf("Waiting for incoming connections...\n")
 
-	serverConn, err := server.Accept()
+		ctx, cancel := context.WithCancel(context.Background())
 
-	if err != nil {
-		panic(err)
-	}
+		serverConn, err := server.Accept()
 
-	transmitter := channelio.NewJSONTransmitter(serverConn, serverConn, reflect.TypeOf(Person{}))
-
-	delay := time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), delay)
-	defer cancel()
-
-	fmt.Printf("Waiting for %s\n", delay)
-
-	emitterValues := make(chan interface{}, 1)
-	receiverValues := make(chan interface{}, 1)
-
-	go func() {
-		for value := range receiverValues {
-			emitterValues <- value
+		if err != nil {
+			panic(err)
 		}
 
-		close(emitterValues)
-	}()
+		go func() {
+			<-ctx.Done()
+			serverConn.Close()
+		}()
 
-	channelio.RunTransmitter(ctx, transmitter, emitterValues, receiverValues)
+		transmitter := channelio.NewJSONTransmitter(serverConn, serverConn, reflect.TypeOf(Person{}))
 
-	close(receiverValues)
+		emitterValues := make(chan interface{}, 1)
+		receiverValues := make(chan interface{}, 1)
+
+		go func() {
+			for value := range receiverValues {
+				fmt.Println("Transmitting value:", value)
+				emitterValues <- value
+			}
+		}()
+
+		// As nothing cancels the context, the only possible way out of
+		// RunTransmitter is an error on the transport. For instance, when the
+		// client disconnects.
+		channelio.RunTransmitter(ctx, transmitter, emitterValues, receiverValues)
+
+		cancel()
+	}
 }
